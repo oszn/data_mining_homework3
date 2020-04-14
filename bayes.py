@@ -23,9 +23,8 @@ def max_pooling(img):
     return tp
 
 def black_grey(path):
+    # print(path)
     img=cv2.imread(path)
-
-
     width,height=img.shape[:2][::-1]
     img=cv2.resize(img,(211,141),interpolation=cv2.INTER_CUBIC)
     img_resize=cv2.cvtColor(img,cv2.COLOR_RGB2GRAY)
@@ -46,23 +45,29 @@ def rg3b():
 lables={"Angry":1,"Disgust":2,"Fear":3,"Happy":4,"Neutral":5,"Sad":6,"Surprise":7}
 def lable(path):
     return path.split('\\')[1]
-def pac(data):
+def pac(data,test_data):
     data=np.array(data)
     pca=PCA(n_components=0.99)
     print(data.shape)
     pca.fit(data)
     d=pca.transform(data)
+    t_d=pca.transform(test_data)
     # return d
     print(pca.explained_variance_ratio_)
-    return d
+    return d,t_d
 def type_path(paths):
     p=[]
     lab=[0,0,0,0,0,0,0,0]
     for i in paths:
         lab[lables[lable(i)]]+=1
-        if(lab[lables[lable(i)]]<=400):
+        if(lab[lables[lable(i)]]<=600):
             p.append(i)
-    return p
+    test_path=[]
+    trian_path=[]
+    for i in range(0,len(p),600):
+        trian_path.append(p[i:i+400])
+        test_path.append(p[i+400:i+600])
+    return trian_path,test_path
 def load_pca_data():
     f = open("pca.txt", "r")
     lines = f.readlines()
@@ -90,8 +95,8 @@ def load_pca_data():
             t_x.append(data[i])
             t_y.append(y[i])
     return train_x,train_y,t_x,t_y
-def bayes():
-    train_x,train_y,t_x,t_y=load_pca_data()
+def bayes(train_x,train_y,t_x,t_y):
+    # train_x,train_y,t_x,t_y=load_pca_data()
     clf=GaussianNB()
     clf.fit(train_x,train_y)
     dp=clf.predict(t_x)
@@ -103,9 +108,9 @@ def bayes():
             ok+=1
         else:
             nok+=1
-    print(ok/(ok+nok))
-def smv():
-    train_x, train_y, t_x, t_y = load_pca_data()
+    print("bayes:"+str(ok/(ok+nok)))
+def smv(train_x,train_y,t_x,t_y):
+    # train_x, train_y, t_x, t_y = load_pca_data()
     clf=svm.SVC()
     clf.fit(train_x,train_y)
     dp = clf.predict(t_x)
@@ -116,36 +121,42 @@ def smv():
             ok += 1
         else:
             nok += 1
-    print(ok / (ok + nok))
-smv()
+    print("svm:"+str(ok / (ok + nok)))
+# smv()
 # bayes()
-# def load_file():
-#     x=[]
-#     y=[]
-#     paths=glob.glob("Train/*/*/*.png")
-#     m_len=0
-#     print(len(paths))
-#     paths=type_path(paths)
-#     f=1
-#     width=0
-#     height=0
-#     for i in paths:
-#         if(f%100==0):
-#             print(f)
-#         f+=1
-#         d,w,h=black_grey(i)
-#         x.append(d)
-#         y.append(lables[lable(i)])
-#
-#     # train_x=
-#     f=open("pca.txt","w+")
-#     clf=GaussianNB()
-#     data=pac(x)
-#     for i in range(len(data)):
-#         for j in data[i]:
-#             f.write(str(j)+" ")
-#         f.write(str(y[i])+"\n")
-#     f.close()
+def load_data(paths):
+    x=[]
+    y=[]
+    p = []
+    for i in paths:
+        for j in i:
+            p.append(j)
+    f = 1
+    for i in p:
+        if (f % 100 == 0):
+            print(f)
+        f += 1
+        d, w, h = black_grey(i)
+        x.append(d)
+        y.append(lables[lable(i)])
+    return x,y
+def load_file():
+    x=[]
+    y=[]
+    paths=glob.glob("Train/*/*/*.png")
+    m_len=0
+    print(len(paths))
+    train_paths,test_path=type_path(paths)
+    train_x,trian_y=load_data(train_paths)
+    test_x,test_y=load_data(test_path)
+    train_data,test_data=pac(train_x,test_x)
+    smv(train_data,trian_y,test_data,test_y)
+    bayes(train_data,trian_y,test_data,test_y)
+    # for i in range(len(data)):
+    #     for j in data[i]:
+    #         f.write(str(j)+" ")
+    #     f.write(str(y[i])+"\n")
+    # f.close()
 #     train_x=[]
 #     train_y=[]
 #     t_x=[]
@@ -171,5 +182,5 @@ smv()
 #         else:
 #             nok+=1
 #     print(ok/(ok+nok))
-# load_file()
+load_file()
 # black_grey("Train/Angry/000046280/5.png")
